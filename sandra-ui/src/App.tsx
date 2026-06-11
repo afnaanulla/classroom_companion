@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchApi } from './api';
+import { fetchApi, API_FILE_BASE } from './api';
 import type { Assignment, StudentInfo } from './types';
 
 function App() {
@@ -161,7 +161,6 @@ function App() {
 
       await fetchApi(`/student/${loggedInUser.telegramId}/submit`, {
         method: 'POST',
-        headers: {}, // Overwrites content-type to let browser set boundary
         body: formData,
       });
       setSubmitModalOpen(false);
@@ -460,7 +459,7 @@ function App() {
                                 📄 "{latestSubmission.textContent}"
                                 {latestSubmission.filePath && (
                                   <div style={{ marginTop: '4px' }}>
-                                    <a href={`http://localhost:3000/${latestSubmission.filePath}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-green)', textDecoration: 'underline' }}>
+                                    <a href={`${API_FILE_BASE}/${latestSubmission.filePath}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-green)', textDecoration: 'underline' }}>
                                       📎 View File
                                     </a>
                                   </div>
@@ -530,7 +529,7 @@ function App() {
                     {selectedAssignment.submissions[0]?.textContent || 'No text submitted.'}
                     {selectedAssignment.submissions[0]?.filePath && (
                       <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(34, 211, 238, 0.2)' }}>
-                        <a href={`http://localhost:3000/${selectedAssignment.submissions[0].filePath}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontWeight: 600 }}>
+                        <a href={`${API_FILE_BASE}/${selectedAssignment.submissions[0].filePath}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontWeight: 600 }}>
                           📎 View Attached File
                         </a>
                       </div>
@@ -716,7 +715,7 @@ function App() {
                           <div style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', whiteSpace: 'pre-wrap' }}>"{latestSubmission.textContent}"</div>
                           {latestSubmission.filePath && (
                             <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-glass)' }}>
-                              <a href={`http://localhost:3000/${latestSubmission.filePath}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontSize: '0.8rem' }}>
+                              <a href={`${API_FILE_BASE}/${latestSubmission.filePath}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontSize: '0.8rem' }}>
                                 📎 Attached File
                               </a>
                             </div>

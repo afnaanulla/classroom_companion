@@ -657,7 +657,8 @@ async function handleTelegramFileSubmission(context: any, fileId: string, origin
             filePath,
         });
 
-        const fileMsg = `\n📎 <b>Attached File:</b> <a href="http://localhost:3000/${filePath}">Download File</a>`;
+        const baseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+        const fileMsg = `\n📎 <b>Attached File:</b> <a href="${baseUrl}/${filePath}">Download File</a>`;
 
         await bot.telegram.sendMessage(
             assignment.teacher.user.telegramId,

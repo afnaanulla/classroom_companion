@@ -111,7 +111,8 @@ studentRouter.post("/:telegramId/submit", upload.single("file"), async (req: Req
 
     if (assignment && assignment.teacher.user.telegramId) {
       const escapeHTML = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const fileMsg = filePath ? `\n📎 <b>Attached File:</b> <a href="http://localhost:3000/${filePath}">Download File</a>` : "";
+      const baseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+      const fileMsg = filePath ? `\n📎 <b>Attached File:</b> <a href="${baseUrl}/${filePath}">Download File</a>` : "";
 
       await bot.telegram.sendMessage(
         assignment.teacher.user.telegramId,

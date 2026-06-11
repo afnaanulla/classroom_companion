@@ -147,3 +147,60 @@ The project leverages a multi-agent system built on top of the LLaMA 3.3 70B mod
 - **Fail-Safe Response Fallbacks**: In the catch-all message listener, any message failing Markdown entity validation is automatically caught and delivered as plain text, ensuring the bot remains online.
 - **Structured LLM Audits**: Every prompt and raw JSON response from Groq is logged inside the `AgentLog` table along with execution latency for monitoring.
 - **Graceful Shutdown**: Express server and database pools disconnect safely on system exit (`SIGINT` / `SIGTERM`).
+- **Environment-Driven URLs**: All file download links and API URLs are driven by environment variables (`BACKEND_URL`, `VITE_API_URL`), ensuring portability between local dev and production deployment.
+
+---
+
+## 🤖 AI Collaboration Craft
+
+### Tools Used
+- **GitHub Copilot / Claude**: Used throughout development for code generation, prompt engineering, and debugging.
+- **Groq Console Playground**: Used to test and iterate on agent prompts before embedding them in code.
+
+### Prompt Engineering Strategy
+- **Few-Shot Examples**: Each agent prompt includes concrete input→output examples (e.g., the Student Agent prompt shows `"Done 3 paragraphs out of 5" → 60%, on-track`).
+- **Structured JSON Output**: All agents are instructed to respond **only** with valid JSON in a specific schema, with a fallback `parseJSON` function that regex-extracts the JSON object even if the LLM wraps it in markdown code blocks.
+- **Confidence Thresholds**: The Intent Router Agent is instructed to output a confidence score. If below 0.6, the system asks the user for clarification instead of guessing — this avoids misrouting messages.
+- **Temperature 0.3**: Low temperature is used across all agents for deterministic, reliable outputs. Higher temperatures caused inconsistent JSON structures.
+
+### What Worked Well
+- **Single-prompt per agent**: Keeping each agent focused on one task (classify, parse, summarize) produced far more reliable outputs than multipurpose prompts.
+- **Fallback plain-text delivery**: When Telegram rejects Markdown-formatted bot messages (due to unescaped special characters), the catch block retries with plain text — this was critical for reliability.
+- **Provider abstraction via `LLMProvider.ts`**: Wrapping all LLM calls through a single function made it trivial to swap from OpenAI to Groq during development without touching agent code.
+
+### What Was Rejected / Failed
+- **Multi-turn conversations**: Early attempts to maintain conversation history for the agents led to context window bloat and slower responses. Switched to stateless single-prompt calls with database context injection instead.
+- **Regex-based intent classification**: Before using the LLM for intent routing, a regex approach was tested. It failed on natural language variations like "hey can you give Riya that essay thing" vs structured commands.
+- **JSON.parse() without regex extraction**: Raw LLM output often includes markdown wrappers like `` ```json ... ``` ``. Direct `JSON.parse()` failed; the regex-based `parseJSON` utility solved this reliably.
+
+---
+
+## ⚙️ Deployment Configuration
+
+### Backend Environment Variables
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | `123456:ABC-DEF` |
+| `GROQ_API_KEY` | Groq API key for LLM calls | `gsk_xxx` |
+| `PORT` | HTTP server port | `3000` |
+| `BACKEND_URL` | Public URL of the backend (for file links) | `https://your-app.railway.app` |
+
+### Frontend Environment Variables
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_API_URL` | Backend API base URL | `https://your-app.railway.app/api` |
+
+---
+
+## ⚠️ Known Limitations
+
+1. **No production auth**: Login is based on Telegram ID entered manually — there is no JWT, session management, or password protection. Acceptable for the assignment scope but not for multi-tenant production.
+2. **Single-file uploads**: Only one file can be attached per submission. Multiple file uploads would require a separate upload endpoint and a file-to-submission join table.
+3. **No real-time WebSocket updates**: The web UI uses polling (auto-refresh every 30 seconds). For truly real-time state updates, a WebSocket layer would be needed.
+4. **Reminder timing is approximate**: Reminders are processed by a cron job running every 5 minutes, so delivery may be up to 5 minutes late from the scheduled time.
+5. **No multi-teacher support for students**: While a student can technically be linked to multiple teachers, the UI and some bot commands assume a single primary teacher.
+6. **File storage is local disk**: Uploaded files are stored in the `uploads/` directory on the server filesystem. For production, this should be replaced with S3/Cloudflare R2/GCS for durability and CDN delivery.
+7. **No rate limiting**: API endpoints and Telegram handlers have no rate limiting, which could be exploited in production.
+8. **LLM provider is Groq-specific**: While the `LLMProvider.ts` abstraction exists, the actual implementation uses Groq SDK directly. Swapping to OpenAI/Claude would require changing the SDK import and API call shape in that one file.
+

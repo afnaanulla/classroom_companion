@@ -7,7 +7,6 @@ import { createSubmission } from "../services/submission.service";
 import { createProgressUpdate } from "../services/assignment.service";
 import { Intent, AgentResponse } from "../types";
 import { logger } from "../utils/logger";
-import { NotFoundError } from "../utils/errors";
 
 export async function processMessage(
   telegramId: string,
@@ -259,13 +258,6 @@ export async function handleStudentQuery(teacherId: string, studentName: string)
       student: {
         include: {
           user: true,
-          assignments: {
-            include: {
-              submissions: { orderBy: { submittedAt: "desc" }, take: 1 },
-              progressUpdates: { orderBy: { createdAt: "desc" }, take: 3 },
-              feedbacks: { orderBy: { createdAt: "desc" }, take: 1 },
-            },
-          },
         },
       },
     },
@@ -279,7 +271,15 @@ export async function handleStudentQuery(teacherId: string, studentName: string)
   }
 
   const student = teacherStudent.student;
-  const assignments = student.assignments;
+  
+  const assignments = await prisma.assignment.findMany({
+    where: { studentId: student.id },
+    include: {
+      submissions: { orderBy: { submittedAt: "desc" }, take: 1 },
+      progressUpdates: { orderBy: { createdAt: "desc" }, take: 3 },
+      feedbacks: { orderBy: { createdAt: "desc" }, take: 1 },
+    }
+  });
 
   if (assignments.length === 0) {
     return {
