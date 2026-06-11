@@ -1,10 +1,10 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 
 import { prisma } from "./config/prisma";
-
-dotenv.config();
+import "./telegram/registerHandlers";
+import { bot } from "./telegram/bot";
 
 const app = express();
 
@@ -34,3 +34,13 @@ app.get("/health", async (_request, response) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+console.log("Starting Telegram bot...");
+bot.launch().catch((error) => {
+  console.error("Failed to start bot:", error);
+});
+console.log("Telegram bot is running...");
+
+// Enable graceful stop
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
