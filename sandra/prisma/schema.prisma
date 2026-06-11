@@ -1,13 +1,126 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TEACHER
+  STUDENT
+}
+
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  FEEDBACK_GIVEN
+}
+
+model User {
+  id             String    @id @default(cuid())
+
+  telegramId     String    @unique
+  name           String
+
+  role           UserRole
+
+  inviteCode     String?   @unique
+
+  teacherProfile Teacher?
+  studentProfile Student?
+
+  createdAt      DateTime  @default(now())
+}
+
+model Teacher {
+  id                String             @id @default(cuid())
+
+  userId            String             @unique
+  user               User              @relation(fields: [userId], references: [id])
+
+  teacherStudents   TeacherStudent[]
+
+  assignments       Assignment[]
+
+  createdAt         DateTime           @default(now())
+}
+
+model Student {
+  id                String             @id @default(cuid())
+
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id])
+
+  teacherStudents   TeacherStudent[]
+
+  assignments       Assignment[]
+
+  progressUpdates   ProgressUpdate[]
+
+  createdAt         DateTime           @default(now())
+}
+
+model TeacherStudent {
+  id                String             @id @default(cuid())
+
+  teacherId         String
+  teacher           Teacher            @relation(fields: [teacherId], references: [id])
+
+  studentId         String
+  student           Student            @relation(fields: [studentId], references: [id])
+
+  createdAt         DateTime           @default(now())
+
+  @@unique([teacherId, studentId])
+}
+
+model Assignment {
+  id                String              @id @default(cuid())
+
+  title             String
+  description       String
+
+  deadline          DateTime
+
+  status            AssignmentStatus    @default(PENDING)
+
+  teacherId         String
+  teacher           Teacher             @relation(fields: [teacherId], references: [id])
+
+  studentId         String
+  student           Student             @relation(fields: [studentId], references: [id])
+
+  progressUpdates   ProgressUpdate[]
+
+  feedbacks         Feedback[]
+
+  createdAt         DateTime            @default(now())
+}
+
+model ProgressUpdate {
+  id                String         @id @default(cuid())
+
+  message           String
+
+  assignmentId      String
+  assignment        Assignment     @relation(fields: [assignmentId], references: [id])
+
+  studentId         String
+  student           Student        @relation(fields: [studentId], references: [id])
+
+  createdAt         DateTime       @default(now())
+}
+
+model Feedback {
+  id                String         @id @default(cuid())
+
+  message           String
+
+  assignmentId      String
+  assignment        Assignment     @relation(fields: [assignmentId], references: [id])
+
+  createdAt         DateTime       @default(now())
 }
