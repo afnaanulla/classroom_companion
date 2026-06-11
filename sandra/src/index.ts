@@ -3,44 +3,66 @@ import express from "express";
 import cors from "cors";
 
 import { prisma } from "./config/prisma";
-import "./telegram/registerHandlers";
 import { bot } from "./telegram/bot";
+import "./telegram/registerHandlers";
+import { teacherRouter } from "./routes/teacher.routes";
+import { studentRouter } from "./routes/student.routes";
+import { startReminderWorker } from "./jobs/reminderWorker";
+import { logger } from "./utils/logger";
 
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 const PORT = process.env.PORT || 3000;
 
-app.get("/health", async (_request, response) => {
+// ── Health check ──
+app.get("/api/health", async (_req, res) => {
   try {
-    await prisma.$connect();
-    response.json({
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
       status: "ok",
       database: "connected",
-      message: "Classroom Companion API is running"
+      message: "Classroom Companion API is running",
+      timestamp: new Date().toISOString(),
     });
-  }
-  catch (error) {
-    response.json({
+  } catch {
+    res.status(500).json({
       status: "error",
       database: "disconnected",
-      message: "Classroom Companion API is not running"
-    })
+      message: "Database connection failed",
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 
+// ── API routes ──
+app.use("/api/teacher", teacherRouter);
+app.use("/api/student", studentRouter);
+
+// ── Start server ──
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info("Server", `API server running on port ${PORT}`);
 });
 
-console.log("Starting Telegram bot...");
+// ── Start Telegram bot ──
 bot.launch().catch((error) => {
-  console.error("Failed to start bot:", error);
+  logger.error("TelegramBot", "Failed to start bot", { error: String(error) });
 });
-console.log("Telegram bot is running...");
+logger.info("TelegramBot", "Telegram bot started");
 
-// Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// ── Start reminder worker ──
+startReminderWorker();
+
+// ── Graceful shutdown ──
+async function shutdown(signal: string) {
+  logger.info("Server", `Received ${signal}, shutting down...`);
+  bot.stop(signal);
+  await prisma.$disconnect();
+  process.exit(0);
+}
+
+process.once("SIGINT", () => shutdown("SIGINT"));
+process.once("SIGTERM", () => shutdown("SIGTERM"));

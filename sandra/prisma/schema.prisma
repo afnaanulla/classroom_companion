@@ -19,108 +19,145 @@ enum AssignmentStatus {
   FEEDBACK_GIVEN
 }
 
+enum EscalationLevel {
+  GENTLE
+  MODERATE
+  URGENT
+  OVERDUE
+}
+
 model User {
-  id             String    @id @default(cuid())
-
-  telegramId     String    @unique
-  name           String
-
-  role           UserRole
-
-  inviteCode     String?   @unique
-
-  teacherProfile Teacher?
-  studentProfile Student?
-
-  createdAt      DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  telegramId          String    @unique
+  name                String
+  role                UserRole
+  inviteCode          String?   @unique
+  inviteCodeExpiresAt DateTime?
+  inviteCodeUses      Int       @default(0)
+  teacherProfile      Teacher?
+  studentProfile      Student?
+  createdAt           DateTime  @default(now())
 }
 
 model Teacher {
-  id                String             @id @default(cuid())
-
-  userId            String             @unique
-  user               User              @relation(fields: [userId], references: [id])
-
-  teacherStudents   TeacherStudent[]
-
-  assignments       Assignment[]
-
-  createdAt         DateTime           @default(now())
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  user            User             @relation(fields: [userId], references: [id])
+  teacherStudents TeacherStudent[]
+  assignments     Assignment[]
+  feedbacks       Feedback[]
+  createdAt       DateTime         @default(now())
 }
 
 model Student {
-  id                String             @id @default(cuid())
-
-  userId            String             @unique
-  user              User               @relation(fields: [userId], references: [id])
-
-  teacherStudents   TeacherStudent[]
-
-  assignments       Assignment[]
-
-  progressUpdates   ProgressUpdate[]
-
-  createdAt         DateTime           @default(now())
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  user            User             @relation(fields: [userId], references: [id])
+  teacherStudents TeacherStudent[]
+  assignments     Assignment[]
+  submissions     Submission[]
+  progressUpdates ProgressUpdate[]
+  reminders       Reminder[]
+  createdAt       DateTime         @default(now())
 }
 
 model TeacherStudent {
-  id                String             @id @default(cuid())
-
-  teacherId         String
-  teacher           Teacher            @relation(fields: [teacherId], references: [id])
-
-  studentId         String
-  student           Student            @relation(fields: [studentId], references: [id])
-
-  createdAt         DateTime           @default(now())
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([teacherId, studentId])
 }
 
 model Assignment {
-  id                String              @id @default(cuid())
+  id              String           @id @default(cuid())
+  title           String
+  description     String
+  deadline        DateTime
+  status          AssignmentStatus @default(PENDING)
+  teacherId       String
+  teacher         Teacher          @relation(fields: [teacherId], references: [id])
+  studentId       String
+  student         Student          @relation(fields: [studentId], references: [id])
+  submissions     Submission[]
+  progressUpdates ProgressUpdate[]
+  feedbacks       Feedback[]
+  reminders       Reminder[]
+  createdAt       DateTime         @default(now())
 
-  title             String
-  description       String
+  @@index([teacherId])
+  @@index([studentId])
+  @@index([deadline])
+  @@index([status])
+}
 
-  deadline          DateTime
+model Submission {
+  id           String     @id @default(cuid())
+  textContent  String
+  filePath     String?
+  reviewed     Boolean    @default(false)
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  submittedAt  DateTime   @default(now())
 
-  status            AssignmentStatus    @default(PENDING)
-
-  teacherId         String
-  teacher           Teacher             @relation(fields: [teacherId], references: [id])
-
-  studentId         String
-  student           Student             @relation(fields: [studentId], references: [id])
-
-  progressUpdates   ProgressUpdate[]
-
-  feedbacks         Feedback[]
-
-  createdAt         DateTime            @default(now())
+  @@index([assignmentId])
+  @@index([studentId])
 }
 
 model ProgressUpdate {
-  id                String         @id @default(cuid())
-
-  message           String
-
-  assignmentId      String
-  assignment        Assignment     @relation(fields: [assignmentId], references: [id])
-
-  studentId         String
-  student           Student        @relation(fields: [studentId], references: [id])
-
-  createdAt         DateTime       @default(now())
+  id           String     @id @default(cuid())
+  message      String
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  createdAt    DateTime   @default(now())
 }
 
 model Feedback {
-  id                String         @id @default(cuid())
+  id           String     @id @default(cuid())
+  message      String
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  teacherId    String
+  teacher      Teacher    @relation(fields: [teacherId], references: [id])
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  createdAt    DateTime   @default(now())
 
-  message           String
+  @@index([assignmentId])
+}
 
-  assignmentId      String
-  assignment        Assignment     @relation(fields: [assignmentId], references: [id])
+model Reminder {
+  id              String          @id @default(cuid())
+  message         String
+  scheduledFor    DateTime
+  sentAt          DateTime?
+  escalationLevel EscalationLevel @default(GENTLE)
+  retryCount      Int             @default(0)
+  assignmentId    String
+  assignment      Assignment      @relation(fields: [assignmentId], references: [id])
+  studentId       String
+  student         Student         @relation(fields: [studentId], references: [id])
+  createdAt       DateTime        @default(now())
 
-  createdAt         DateTime       @default(now())
+  @@index([scheduledFor])
+  @@index([sentAt])
+}
+
+model AgentLog {
+  id         String   @id @default(cuid())
+  agentType  String
+  input      String
+  output     String
+  durationMs Int
+  executedAt DateTime @default(now())
+
+  @@index([agentType])
+  @@index([executedAt])
 }
